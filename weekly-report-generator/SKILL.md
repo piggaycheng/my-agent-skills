@@ -40,20 +40,24 @@ This skill guides the agent in gathering Redmine issues for the current week, ex
      - `sort`: `"updated_on:desc"`
      - `limit`: `100`
 
-4. **Fetch Issue Notes & Details (Leaf Nodes Only)**:
-   - For each issue retrieved:
-     - Call `get_redmine_issue` with `issue_id` to retrieve details, journals, and children (`include_journals=True`, `include_children=True`).
-     - **Leaf Node Check**: Inspect the `"children"` field of the issue. If the issue has child tasks (i.e., the `"children"` list is not empty), **discard it**. We only include leaf-node issues that do not contain subtasks.
-     - Extract notes and descriptions for the remaining leaf issues.
+4. **Identify Leaf Nodes (Batch Query)**:
+   - Collect the IDs of all candidate issues retrieved in Step 3.
+   - Perform a batch query using `list_redmine_issues` (or by constructing the URL filter if using custom HTTP) to find all subtasks whose `parent_id` is in the candidate IDs list (e.g., using `parent_id` set to the candidate IDs).
+   - Extract the `parent.id` from the returned subtasks. Any candidate ID that appears as a parent is a parent task (not a leaf node) and should be discarded.
+   - The remaining candidate issues that do not have any subtasks in Redmine are our leaf-node issues.
 
-5. **Summarize Progress**:
+5. **Fetch Progress Notes & Details (Leaf Nodes Only)**:
+   - For each identified leaf-node issue:
+     - Call `get_redmine_issue` with `issue_id` and `include_journals=True` to retrieve its description and note journals.
+
+6. **Summarize Progress**:
    - Use the LLM to analyze the description and note journals for each leaf issue (focusing on the latest comments from the assignee).
    - Extract 3-5 concise, professional, action-oriented bullet points summarizing:
      - What was achieved/completed.
      - Current implementation details or logic.
      - Next steps or blockers (if any).
 
-6. **Generate Issues JSON**:
+7. **Generate Issues JSON**:
    - Save the consolidated leaf-node issue data into a temporary JSON file at `scratch/issues.json` in the conversation's scratch directory:
      `C:\Users\yucheng\.gemini\antigravity-cli\brain\<conversation-id>\scratch\issues.json`
    - The JSON schema should look like:
@@ -79,7 +83,7 @@ This skill guides the agent in gathering Redmine issues for the current week, ex
      }
      ```
 
-7. **Generate PowerPoint Presentation**:
+8. **Generate PowerPoint Presentation**:
    - Run the Python PPTX generator script using `uv`:
      `uv run scripts/generate_weekly_report.py C:\Users\yucheng\.gemini\antigravity-cli\brain\<conversation-id>\scratch\issues.json`
    - The script will automatically:
@@ -88,6 +92,6 @@ This skill guides the agent in gathering Redmine issues for the current week, ex
      - Generate slide(s) containing a structured, formatted table of issues and their statuses (paginated in chunks of 10 if there are many issues).
      - Generate one detail slide per issue using the template's standard content layout, putting metadata in a clean left column card and bulleted progress updates in the right column.
 
-8. **Aesthetic Quality Control**:
+9. **Aesthetic Quality Control**:
    - Call `ppt_get_slide_preview` to inspect the generated slides.
    - Verify alignment, contrast, readability, and ensure no text overflows or overlaps.
