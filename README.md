@@ -6,7 +6,7 @@ This repository contains a collection of custom Agent Skills for Google Antigrav
 
 | Skill Folder | Description | Trigger Example |
 | :--- | :--- | :--- |
-| **`weekly-report-generator`** | Automatically gathers git history and formats weekly progress reports. | *"Generate a weekly report for me"* |
+| **`weekly-report-generator`** | Automatically fetches Redmine issues assigned to the user for the current week, filters out parent tasks (keeping leaf nodes), summarizes progress notes, and generates a PowerPoint report using Mirle Group's official template. | *"取得我這週的 Redmine issue 並用盟立公版產生週報 PPT"* |
 | **`redmine-git-integration`** | Analyzes git diffs/commits and logs them directly to Redmine issues. | *"Analyze the commits between main and dev, then update Redmine issue #1234"* |
 
 ---
@@ -60,13 +60,11 @@ Once installed, there is **no need for manual loading**. The next time you start
 .
 ├── README.md                      # This installation guide
 ├── weekly-report-generator/       # Weekly Report Generator Skill
-│   ├── SKILL.md
+│   ├── SKILL.md                   # Skill instructions & leaf-node task filter details
 │   ├── scripts/
-│   │   └── collect_git_info.py
-│   ├── resources/
-│   │   └── report_template.md
+│   │   └── generate_weekly_report.py  # Python PowerPoint COM automation script (runs via uv)
 │   └── examples/
-│       └── example_report.md
+│       └── example_issues.json    # Example input data format for PowerPoint generation
 └── redmine-git-integration/       # Redmine Git Integration Skill
     ├── SKILL.md
     ├── scripts/
@@ -74,4 +72,3 @@ Once installed, there is **no need for manual loading**. The next time you start
     └── examples/
         └── example_usage.md
 ```
-
