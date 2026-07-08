@@ -35,6 +35,7 @@ This skill guides the agent in gathering Redmine issues for the current week, ex
 3. **Retrieve Issues from Redmine**:
    - Call `list_redmine_issues` with the following parameters:
      - `status_id`: `"*"` (retrieve all statuses)
+     - `assigned_to_id`: `"me"` (retrieve issues assigned to the current user)
      - `filters`: `{"created_on": ">=YYYY-MM-DD"}` (using Monday's date)
      - `sort`: `"updated_on:desc"`
      - `limit`: `100`
