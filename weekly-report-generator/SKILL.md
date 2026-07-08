@@ -1,34 +1,80 @@
 ---
 name: weekly-report-generator
-description: Handles generating structured weekly status reports by analyzing git commits, tasks, and using templates. Trigger this skill when the user asks to generate, update, or edit a weekly report.
+description: Automatically fetches Redmine issues updated/created in the current week, retrieves progress from issue notes, filters out issues with subtasks to only include leaf-node tasks, and compiles them into a PowerPoint presentation using the powerpoint MCP server and Mirle Group's official template.
 ---
 
-# Weekly Report Generator Skill
+# Weekly Report Generator Skill (PowerPoint & Redmine)
 
-This skill guides the agent in gathering, formatting, and presenting weekly progress reports for the user.
+This skill guides the agent in gathering Redmine issues for the current week, extracting status updates and details from their note journals, filtering for leaf-node tasks (issues with no subtasks), and generating a professional weekly report slide deck using Mirle Group's official PowerPoint template.
+
+## Prerequisites
+- The **Redmine** MCP server must be configured and running.
+- The **PowerPoint** MCP server must be running, and the PowerPoint application should be open.
+- The official Mirle Group template file must be available at:
+  `C:\Users\yucheng\Documents\自訂 Office 範本\盟立集團-新版ppt-2.potx`
+- The `uv` command-line tool must be installed on the system to execute Python scripts with dependencies.
 
 ## Workflow
 
-1. **Information Gathering**:
-   - Collect recent git commits (e.g., using `git log --since="7 days ago" --oneline`).
-   - Query project tasks or ticket updates if applicable.
-   - Read the user's input/notes for additional context.
+1. **Calculate Date Window**:
+   - Determine the start date of the current week (Monday) and the end date (Sunday).
+   - For example, if today is `2026-07-08` (Wednesday), the start date (Monday) is `2026-07-06`.
 
-2. **Template Application**:
-   - Load the weekly report template from `resources/report_template.md`.
-   - Fill out the template sections:
-     - **Overview / Summary**: A high-level 2-3 sentence summary of the week's focus.
-     - **Key Achievements**: Bulleted list of completed work.
-     - **In Progress / Current Focus**: What is currently being worked on.
-     - **Next Steps / Upcoming Tasks**: Plans for the next week.
-     - **Blockers / Risks**: Any issues preventing progress.
+2. **Retrieve Issues from Redmine**:
+   - Call `list_redmine_issues` with the following parameters:
+     - `status_id`: `"*"` (retrieve all statuses)
+     - `filters`: `{"created_on": ">=YYYY-MM-DD"}` (using Monday's date)
+     - `sort`: `"updated_on:desc"`
+     - `limit`: `100`
 
-3. **Refinement**:
-   - Present the drafted report to the user as an artifact or direct message.
-   - Ask for confirmation or edits.
+3. **Fetch Issue Notes & Details (Leaf Nodes Only)**:
+   - For each issue retrieved:
+     - Call `get_redmine_issue` with `issue_id` to retrieve details, journals, and children (`include_journals=True`, `include_children=True`).
+     - **Leaf Node Check**: Inspect the `"children"` field of the issue. If the issue has child tasks (i.e., the `"children"` list is not empty), **discard it**. We only include leaf-node issues that do not contain subtasks.
+     - Extract notes and descriptions for the remaining leaf issues.
 
-## Guidelines for the Agent
-- Keep descriptions clear, action-oriented, and concise.
-- Group commits by feature or topic rather than listing every raw commit message.
-- Use professional and clear language.
-- Link to relevant issue tracker tickets if they are provided.
+4. **Summarize Progress**:
+   - Use the LLM to analyze the description and note journals for each leaf issue (focusing on the latest comments from the assignee).
+   - Extract 3-5 concise, professional, action-oriented bullet points summarizing:
+     - What was achieved/completed.
+     - Current implementation details or logic.
+     - Next steps or blockers (if any).
+
+5. **Generate Issues JSON**:
+   - Save the consolidated leaf-node issue data into a temporary JSON file at `scratch/issues.json` in the conversation's scratch directory:
+     `C:\Users\yucheng\.gemini\antigravity-cli\brain\<conversation-id>\scratch\issues.json`
+   - The JSON schema should look like:
+     ```json
+     {
+       "start_date": "YYYY-MM-DD",
+       "end_date": "YYYY-MM-DD",
+       "issues": [
+         {
+           "id": 12345,
+           "tracker": "Task",
+           "subject": "Leaf Issue Subject",
+           "status": "Resolved",
+           "assignee": "Assignee Name",
+           "project": "Project Name",
+           "created_on": "YYYY-MM-DD",
+           "key_points": [
+             "Summarized progress point 1",
+             "Summarized progress point 2"
+           ]
+         }
+       ]
+     }
+     ```
+
+6. **Generate PowerPoint Presentation**:
+   - Run the Python PPTX generator script using `uv`:
+     `uv run scripts/generate_weekly_report.py C:\Users\yucheng\.gemini\antigravity-cli\brain\<conversation-id>\scratch\issues.json`
+   - The script will automatically:
+     - Connect to the running PowerPoint instance and target the active presentation or create a new one using the Mirle template.
+     - Keep Slide 1 as the Title slide, updating the title to "盟立集團 工作週報" and the subtitle with the date range.
+     - Generate slide(s) containing a structured, formatted table of issues and their statuses (paginated in chunks of 10 if there are many issues).
+     - Generate one detail slide per issue using the template's standard content layout, putting metadata in a clean left column card and bulleted progress updates in the right column.
+
+7. **Aesthetic Quality Control**:
+   - Call `ppt_get_slide_preview` to inspect the generated slides.
+   - Verify alignment, contrast, readability, and ensure no text overflows or overlaps.

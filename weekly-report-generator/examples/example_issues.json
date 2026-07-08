@@ -1,0 +1,20 @@
+{
+  "start_date": "2026-07-06",
+  "end_date": "2026-07-12",
+  "issues": [
+    {
+      "id": 39890,
+      "tracker": "Task",
+      "subject": "log功能新增",
+      "project": "具身智能軟體研發專案",
+      "status": "Resolved",
+      "assignee": "榆 鄭",
+      "created_on": "2026-07-06",
+      "key_points": [
+        "已完成 feat/log_combined_refactored 分支程式碼與測試。",
+        "實作 BTFileLogger 自動記錄行為樹狀態移轉至 /tmp/bt_status.log。",
+        "整合 ROS 2 Logger，記錄 custom 動作節點執行細節。"
+      ]
+    }
+  ]
+}
