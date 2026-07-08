@@ -13,12 +13,23 @@ This skill guides the agent to analyze git changes (specific commits, branch dif
 
 ## Workflow
 
-1. **Parameters Verification**:
+1. **Prerequisites Verification (MCP Check)**:
+   - **CRITICAL**: Before executing any other steps, verify if the required Redmine MCP tools are available in the current session.
+   - Check if you can access Redmine tools (e.g., `get_current_user` or `list_redmine_issues`).
+   - If the Redmine MCP server is missing or unresponsive, immediately stop the workflow and output a clear error message to the user:
+     > **[!] 錯誤：環境設定不足**
+     > 本技能需要 `redmine` MCP Server。請確認它已在您的 Antigravity 主程式設定檔（config.json）中配置。
+     >
+     > **安裝來源網址：**
+     > * **Redmine MCP Server**: https://github.com/jztan/redmine-mcp-server
+   - If verification passes, proceed to Step 2.
+
+2. **Parameters Verification**:
    - Ask the user for the Git reference (e.g. commit hashes, `main..feature`, or tag names).
    - Ask if they want to **Create a new issue** or **Update an existing issue**.
    - Get the Redmine Project ID (for new issues) or Issue ID (for updates).
 
-2. **Git Diff & Analysis**:
+3. **Git Diff & Analysis**:
    - Execute git commands or helper scripts (e.g. `scripts/git_diff_analyzer.py`) to retrieve:
      - The commit messages in the specified range.
      - The files changed.
@@ -28,12 +39,12 @@ This skill guides the agent to analyze git changes (specific commits, branch dif
      - **Key Changes**: Bullet points explaining what files/modules were changed and why.
      - **Impact**: Any potential risks or side effects.
 
-3. **Redmine Issue Processing**:
+4. **Redmine Issue Processing**:
   - **Case A: Create New Issue**:
      - Call `create_redmine_issue` with:
        - `project_id`: Project identifier.
        - `subject`: Concise summary of the changes.
-       - `description`: The detailed summary of the modifications generated in Step 2.
+       - `description`: The detailed summary of the modifications generated in Step 3.
    - **Case B: Update Existing Issue**:
      - Retrieve current status using `get_redmine_issue`.
      - Call `update_redmine_issue` to add a note/journal entry with the summarized git changes.
@@ -52,4 +63,3 @@ This skill guides the agent to analyze git changes (specific commits, branch dif
 - Keep the Redmine description/notes formatted in standard Redmine textile or markdown format.
 - For Case C, be objective when judging whether requirements are met, highlighting code files and lines where possible.
 - Always confirm the summary text with the user before invoking the Redmine MCP tools.
-
