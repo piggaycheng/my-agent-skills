@@ -10,7 +10,7 @@
 import os
 import sys
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
@@ -40,13 +40,29 @@ def get_credentials(user_email):
     print(f"Error: Credentials file for '{user_email}' not found in any of {dirs_to_check}")
     sys.exit(1)
 
+def find_template_id(drive_service, template_name="盟立集團-新版ppt-2"):
+    query = f"name contains '{template_name}' and mimeType = 'application/vnd.google-apps.presentation' and trashed = false"
+    res = drive_service.files().list(q=query, fields="files(id, name)").execute()
+    files = res.get("files", [])
+    if files:
+        return files[0]["id"]
+        
+    query_fallback = f"name contains '{template_name}' and trashed = false"
+    res_fallback = drive_service.files().list(q=query_fallback, fields="files(id, name)").execute()
+    files_fallback = res_fallback.get("files", [])
+    if files_fallback:
+        return files_fallback[0]["id"]
+        
+    return None
+
 def main():
     if len(sys.argv) < 2:
-        print("Usage: uv run generate_weekly_report_gslides.py <json_path> [user_email]")
+        print("Usage: uv run generate_weekly_report_gslides.py <json_path> [user_email] [user_name]")
         sys.exit(1)
         
     json_path = sys.argv[1]
     user_email = sys.argv[2] if len(sys.argv) > 2 else "piggaycheng123@gmail.com"
+    override_user_name = sys.argv[3] if len(sys.argv) > 3 else None
     
     if not os.path.exists(json_path):
         print(f"Error: JSON file not found: {json_path}")
@@ -58,16 +74,41 @@ def main():
     start_date = data.get("start_date", "")
     end_date = data.get("end_date", "")
     issues = data.get("issues", [])
+    user_name = override_user_name or data.get("user_name") or data.get("reporter") or "王小明"
+    
+    # Calculate Friday date (YYYYMMDD)
+    if start_date:
+        try:
+            monday_dt = datetime.strptime(start_date, "%Y-%m-%d")
+            friday_dt = monday_dt + timedelta(days=4)
+            friday_str = friday_dt.strftime("%Y%m%d")
+        except Exception:
+            friday_str = datetime.now().strftime("%Y%m%d")
+    else:
+        friday_str = datetime.now().strftime("%Y%m%d")
+        
+    # File name format: <使用者名稱>_週報_<這周週五的年月日>
+    file_name = f"{user_name}_週報_{friday_str}"
     
     creds = get_credentials(user_email)
+    drive_service = build('drive', 'v3', credentials=creds)
     slides_service = build('slides', 'v1', credentials=creds)
     
-    # Create new Google Slides presentation
-    pres_title = f"盟立集團 工作週報 ({start_date} ~ {end_date})"
-    pres = slides_service.presentations().create(body={'title': pres_title}).execute()
-    pres_id = pres.get('presentationId')
-    initial_slides = pres.get('slides', [])
-    initial_slide_id = initial_slides[0].get('objectId') if initial_slides else None
+    # Find template "盟立集團-新版ppt-2"
+    template_id = find_template_id(drive_service, "盟立集團-新版ppt-2")
+    
+    if template_id:
+        print(f"Found template '盟立集團-新版ppt-2' (ID: {template_id}). Copying template...")
+        copied_file = drive_service.files().copy(fileId=template_id, body={'name': file_name}).execute()
+        pres_id = copied_file.get('id')
+    else:
+        print("Warning: Template '盟立集團-新版ppt-2' not found on Google Drive. Creating new presentation...")
+        pres = slides_service.presentations().create(body={'title': file_name}).execute()
+        pres_id = pres.get('presentationId')
+        
+    # Get presentation details
+    pres = slides_service.presentations().get(presentationId=pres_id).execute()
+    slides_list = pres.get('slides', [])
     
     requests = []
     
@@ -79,106 +120,90 @@ def main():
     color_dark_text = rgb_to_dict(45, 55, 72)      # #2D3748 Dark Charcoal
     color_alt_row = rgb_to_dict(241, 245, 249)     # #F1F5F9 Slate Light
     
-    # 1. Slide 1: Title Slide
-    title_slide_id = "slide_title_1"
-    requests.append({
-        'createSlide': {
-            'objectId': title_slide_id,
-            'slideLayoutReference': {'predefinedLayout': 'BLANK'}
-        }
-    })
-    # Title Slide Background Shape (Dark Navy Banner)
-    title_bg_id = "title_bg_1"
-    requests.append({
-        'createShape': {
-            'objectId': title_bg_id,
-            'shapeType': 'RECTANGLE',
-            'elementProperties': {
-                'pageObjectId': title_slide_id,
-                'size': {'width': {'magnitude': 720, 'unit': 'PT'}, 'height': {'magnitude': 405, 'unit': 'PT'}},
-                'transform': {'scaleX': 1, 'scaleY': 1, 'translateX': 0, 'translateY': 0, 'unit': 'PT'}
-            }
-        }
-    })
-    requests.append({
-        'updateShapeProperties': {
-            'objectId': title_bg_id,
-            'shapeProperties': {
-                'shapeBackgroundFill': {'solidFill': {'color': {'rgbColor': color_navy}}},
-                'outline': {'propertyState': 'NOT_RENDERED'}
-            },
-            'fields': 'shapeBackgroundFill.solidFill.color,outline.propertyState'
-        }
-    })
-    # Title Text Box
-    title_text_id = "title_text_1"
-    requests.append({
-        'createShape': {
-            'objectId': title_text_id,
-            'shapeType': 'TEXT_BOX',
-            'elementProperties': {
-                'pageObjectId': title_slide_id,
-                'size': {'width': {'magnitude': 620, 'unit': 'PT'}, 'height': {'magnitude': 80, 'unit': 'PT'}},
-                'transform': {'scaleX': 1, 'scaleY': 1, 'translateX': 50, 'translateY': 100, 'unit': 'PT'}
-            }
-        }
-    })
-    requests.append({
-        'insertText': {
-            'objectId': title_text_id,
-            'text': "盟立集團 工作週報",
-            'insertionIndex': 0
-        }
-    })
-    requests.append({
-        'updateTextStyle': {
-            'objectId': title_text_id,
-            'textRange': {'type': 'ALL'},
-            'style': {
-                'fontFamily': 'Microsoft JhengHei',
-                'fontSize': {'magnitude': 36, 'unit': 'PT'},
-                'bold': True,
-                'foregroundColor': {'opaqueColor': {'rgbColor': color_white}}
-            },
-            'fields': 'fontFamily,fontSize,bold,foregroundColor'
-        }
-    })
-    # Subtitle Text Box
-    subtitle_text_id = "subtitle_text_1"
     current_date_str = datetime.now().strftime("%Y-%m-%d")
-    subtitle_content = f"報告期間：{start_date} ~ {end_date}\n產出時間：{current_date_str}\n報告人員：機器人開發小組"
-    requests.append({
-        'createShape': {
-            'objectId': subtitle_text_id,
-            'shapeType': 'TEXT_BOX',
-            'elementProperties': {
-                'pageObjectId': title_slide_id,
-                'size': {'width': {'magnitude': 620, 'unit': 'PT'}, 'height': {'magnitude': 100, 'unit': 'PT'}},
-                'transform': {'scaleX': 1, 'scaleY': 1, 'translateX': 50, 'translateY': 200, 'unit': 'PT'}
-            }
-        }
-    })
-    requests.append({
-        'insertText': {
-            'objectId': subtitle_text_id,
-            'text': subtitle_content,
-            'insertionIndex': 0
-        }
-    })
-    requests.append({
-        'updateTextStyle': {
-            'objectId': subtitle_text_id,
-            'textRange': {'type': 'ALL'},
-            'style': {
-                'fontFamily': 'Microsoft JhengHei',
-                'fontSize': {'magnitude': 14, 'unit': 'PT'},
-                'bold': False,
-                'foregroundColor': {'opaqueColor': {'rgbColor': color_light_blue}}
-            },
-            'fields': 'fontFamily,fontSize,bold,foregroundColor'
-        }
-    })
+    subtitle_content = f"報告期間：{start_date} ~ {end_date}\n產出時間：{current_date_str}\n報告人員：{user_name}"
     
+    # 1. Slide 1: Update Title Slide to match file_name
+    if slides_list:
+        slide_1_id = slides_list[0].get('objectId')
+        # Replace placeholders in template Slide 1 if present
+        requests.append({
+            'replaceAllText': {
+                'replaceText': file_name,
+                'containsText': {'text': '按一下以編輯母片標題樣式'},
+                'pageObjectIds': [slide_1_id]
+            }
+        })
+        requests.append({
+            'replaceAllText': {
+                'replaceText': subtitle_content,
+                'containsText': {'text': '按一下以編輯母片副標題樣式'},
+                'pageObjectIds': [slide_1_id]
+            }
+        })
+        
+        # Add text box for title to ensure title matches file_name
+        title_text_id = "title_text_1"
+        subtitle_text_id = "subtitle_text_1"
+        requests.append({
+            'createShape': {
+                'objectId': title_text_id,
+                'shapeType': 'TEXT_BOX',
+                'elementProperties': {
+                    'pageObjectId': slide_1_id,
+                    'size': {'width': {'magnitude': 620, 'unit': 'PT'}, 'height': {'magnitude': 80, 'unit': 'PT'}},
+                    'transform': {'scaleX': 1, 'scaleY': 1, 'translateX': 50, 'translateY': 80, 'unit': 'PT'}
+                }
+            }
+        })
+        requests.append({
+            'insertText': {'objectId': title_text_id, 'text': file_name, 'insertionIndex': 0}
+        })
+        requests.append({
+            'updateTextStyle': {
+                'objectId': title_text_id,
+                'textRange': {'type': 'ALL'},
+                'style': {
+                    'fontFamily': 'Microsoft JhengHei',
+                    'fontSize': {'magnitude': 32, 'unit': 'PT'},
+                    'bold': True,
+                    'foregroundColor': {'opaqueColor': {'rgbColor': color_navy}}
+                },
+                'fields': 'fontFamily,fontSize,bold,foregroundColor'
+            }
+        })
+        requests.append({
+            'createShape': {
+                'objectId': subtitle_text_id,
+                'shapeType': 'TEXT_BOX',
+                'elementProperties': {
+                    'pageObjectId': slide_1_id,
+                    'size': {'width': {'magnitude': 620, 'unit': 'PT'}, 'height': {'magnitude': 100, 'unit': 'PT'}},
+                    'transform': {'scaleX': 1, 'scaleY': 1, 'translateX': 50, 'translateY': 180, 'unit': 'PT'}
+                }
+            }
+        })
+        requests.append({
+            'insertText': {'objectId': subtitle_text_id, 'text': subtitle_content, 'insertionIndex': 0}
+        })
+        requests.append({
+            'updateTextStyle': {
+                'objectId': subtitle_text_id,
+                'textRange': {'type': 'ALL'},
+                'style': {
+                    'fontFamily': 'Microsoft JhengHei',
+                    'fontSize': {'magnitude': 14, 'unit': 'PT'},
+                    'foregroundColor': {'opaqueColor': {'rgbColor': color_dark_text}}
+                },
+                'fields': 'fontFamily,fontSize,foregroundColor'
+            }
+        })
+        
+    # Delete slide 2 and subsequent initial slides from template
+    if len(slides_list) > 1:
+        for s in slides_list[1:]:
+            requests.append({'deleteObject': {'objectId': s.get('objectId')}})
+            
     # 2. Slide 2+: Issues Summary Table Slide(s)
     chunk_size = 10
     issue_chunks = [issues[i:i + chunk_size] for i in range(0, len(issues), chunk_size)]
@@ -187,12 +212,10 @@ def main():
         table_slide_id = f"slide_table_{chunk_idx + 1}"
         requests.append({
             'createSlide': {
-                'objectId': table_slide_id,
-                'slideLayoutReference': {'predefinedLayout': 'BLANK'}
+                'objectId': table_slide_id
             }
         })
         
-        # Header Title Text Box
         title_text = "本週 Issue 狀態彙整"
         if len(issue_chunks) > 1:
             title_text += f" ({chunk_idx + 1}/{len(issue_chunks)})"
@@ -299,12 +322,10 @@ def main():
         detail_slide_id = f"slide_detail_{idx + 1}"
         requests.append({
             'createSlide': {
-                'objectId': detail_slide_id,
-                'slideLayoutReference': {'predefinedLayout': 'BLANK'}
+                'objectId': detail_slide_id
             }
         })
         
-        # Header Title
         issue_id = issue.get("id", "")
         tracker = issue.get("tracker", "Issue")
         subject = issue.get("subject", "")
@@ -423,11 +444,7 @@ def main():
             }
         })
         
-    # Delete initial blank slide if created by Google Slides
-    if initial_slide_id:
-        requests.append({'deleteObject': {'objectId': initial_slide_id}})
-        
-    # Execute batchUpdate in batches of 80 requests to avoid request payload size limits
+    # Execute batchUpdate in chunks of 80
     batch_size = 80
     for i in range(0, len(requests), batch_size):
         chunk_reqs = requests[i:i + batch_size]
@@ -438,6 +455,7 @@ def main():
         
     url = f"https://docs.google.com/presentation/d/{pres_id}/edit"
     print(f"SUCCESS: Google Slides weekly report generated successfully!")
+    print(f"Presentation Title: {file_name}")
     print(f"Presentation ID: {pres_id}")
     print(f"Google Slides URL: {url}")
 
