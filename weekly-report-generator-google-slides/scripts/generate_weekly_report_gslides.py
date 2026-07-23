@@ -17,6 +17,28 @@ from googleapiclient.discovery import build
 def rgb_to_dict(r, g, b):
     return {"red": r / 255.0, "green": g / 255.0, "blue": b / 255.0}
 
+def find_default_user_email():
+    env_email = os.getenv("USER_GOOGLE_EMAIL") or os.getenv("GOOGLE_USER_EMAIL")
+    if env_email:
+        return env_email
+        
+    workspace_dir = os.getenv("WORKSPACE_MCP_CREDENTIALS_DIR") or os.getenv("GOOGLE_MCP_CREDENTIALS_DIR")
+    dirs_to_check = []
+    if workspace_dir:
+        dirs_to_check.append(os.path.expanduser(workspace_dir))
+    dirs_to_check.append(os.path.expanduser("~/.google_workspace_mcp/credentials"))
+    dirs_to_check.append(os.path.join(os.getcwd(), ".credentials"))
+
+    for d in dirs_to_check:
+        if os.path.exists(d):
+            try:
+                for f in os.listdir(d):
+                    if f.endswith(".json") and f != "oauth_states.json":
+                        return f[:-5]
+            except Exception:
+                pass
+    return "user@example.com"
+
 def get_credentials(user_email):
     workspace_dir = os.getenv("WORKSPACE_MCP_CREDENTIALS_DIR")
     google_dir = os.getenv("GOOGLE_MCP_CREDENTIALS_DIR")
@@ -71,7 +93,7 @@ def main():
         sys.exit(1)
         
     json_path = sys.argv[1]
-    user_email = sys.argv[2] if len(sys.argv) > 2 else "piggaycheng123@gmail.com"
+    user_email = sys.argv[2] if len(sys.argv) > 2 else find_default_user_email()
     override_user_name = sys.argv[3] if len(sys.argv) > 3 else None
     
     if not os.path.exists(json_path):
