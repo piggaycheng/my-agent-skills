@@ -18,9 +18,13 @@ This skill guides the agent in gathering Redmine issues for the current week, ex
 1. **Prerequisites Verification (MCP Check)**:
    - **CRITICAL**: Before executing any other steps, verify if the required MCP tools are available in the current environment.
    - Check if you can access Redmine tools (e.g., `get_current_user` or `list_redmine_issues`) and Google Workspace tools (e.g., `copy_drive_file`, `search_drive_files`, or `batch_update_presentation`).
-   - If either MCP server is missing or unresponsive, immediately stop the workflow and output a clear error message to the user:
+   - If either MCP server is missing or unresponsive, immediately stop the workflow and output a clear error & installation guide to the user:
      > **[!] 錯誤：環境設定不足**
-     > 本技能需要 `redmine` 與 `google-workspace` 兩個 MCP Server。請確認它們已在您的 Antigravity 主程式設定檔（config.json）中配置。
+     > 本技能需要 `redmine` 與 `google-workspace` 兩個 MCP Server。請確認它們已在您的 Antigravity 主程式設定檔（`~/.gemini/config/mcp_config.json` 或 `settings.json`）中配置並啟動。
+     >
+     > **安裝來源網址與設定指引：**
+     > 1. **Redmine MCP Server**: https://github.com/jztan/redmine-mcp-server
+     > 2. **Google Workspace MCP Server**: https://github.com/taylorwilsdon/google_workspace_mcp
    - Verify that the template file `盟立集團-新版ppt-2` is searchable on Google Drive via `search_drive_files`.
    - If verification passes, proceed to Step 2.
 
