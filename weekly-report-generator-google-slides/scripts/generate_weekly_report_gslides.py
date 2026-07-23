@@ -74,7 +74,19 @@ def main():
     start_date = data.get("start_date", "")
     end_date = data.get("end_date", "")
     issues = data.get("issues", [])
-    user_name = override_user_name or data.get("user_name") or data.get("reporter") or "王小明"
+    creds = get_credentials(user_email)
+    drive_service = build('drive', 'v3', credentials=creds)
+    slides_service = build('slides', 'v1', credentials=creds)
+
+    # Prioritize Google account displayName as top priority
+    google_display_name = None
+    try:
+        about = drive_service.about().get(fields="user").execute()
+        google_display_name = about.get("user", {}).get("displayName")
+    except Exception as e:
+        print(f"Warning: Could not fetch Google user displayName: {e}")
+
+    user_name = google_display_name or override_user_name or data.get("user_name") or data.get("reporter") or "王小明"
     
     # Calculate Friday date (YYYYMMDD)
     if start_date:
@@ -89,10 +101,6 @@ def main():
         
     # File name format: <使用者名稱>_週報_<這周週五的年月日>
     file_name = f"{user_name}_週報_{friday_str}"
-    
-    creds = get_credentials(user_email)
-    drive_service = build('drive', 'v3', credentials=creds)
-    slides_service = build('slides', 'v1', credentials=creds)
     
     # Find template "盟立集團-新版ppt-2"
     template_id = find_template_id(drive_service, "盟立集團-新版ppt-2")

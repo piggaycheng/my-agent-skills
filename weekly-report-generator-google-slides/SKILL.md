@@ -30,7 +30,7 @@ This skill guides the agent in gathering Redmine issues for the current week, ex
    - For example, if today is `2026-07-23` (Thursday), Monday is `2026-07-20`, Sunday is `2026-07-26`, and Friday is `20260724`.
 
 3. **Retrieve User Name & Issues from Redmine**:
-   - Retrieve current user details using `get_current_user` to obtain `<使用者名稱>` (e.g., `王小明` or `xiaoming`).
+   - Determine `<使用者名稱>` with top priority given to the authenticated Google Account Display Name (via `google-workspace` Drive API), falling back to Redmine `get_current_user` (e.g., `王小明` or `xiaoming`).
    - Call `list_redmine_issues` with the following parameters:
      - `status_id`: `"*"` (retrieve all statuses)
      - `assigned_to_id`: `"me"` (retrieve issues assigned to the current user)
