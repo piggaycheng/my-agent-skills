@@ -132,7 +132,7 @@ def main():
     else:
         friday_str = datetime.now().strftime("%Y%m%d")
         
-    file_name = f"{user_name}_週報_{friday_str}"
+    file_name = f"週報_{user_name}_{friday_str}"
     
     # Find template "盟立集團-新版ppt-2"
     template_id = find_template_id(drive_service, "盟立集團-新版ppt-2")

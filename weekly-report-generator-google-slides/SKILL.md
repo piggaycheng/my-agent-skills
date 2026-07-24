@@ -1,11 +1,11 @@
 ---
 name: weekly-report-generator-google-slides
-description: Automatically fetches Redmine issues updated/created in the current week, retrieves progress from issue notes, filters out issues with subtasks to only include leaf-node tasks, copies the official "盟立集團-新版ppt-2" Google Slides template, renames it to <使用者名稱>_週報_<這周週五的年月日>, and populates the weekly report using the google-workspace MCP server.
+description: Automatically fetches Redmine issues updated/created in the current week, retrieves progress from issue notes, filters out issues with subtasks to only include leaf-node tasks, copies the official "盟立集團-新版ppt-2" Google Slides template, renames it to 週報_<使用者名稱>_<這周週五的年月日>, and populates the weekly report using the google-workspace MCP server.
 ---
 
 # Weekly Report Generator Skill (Google Slides & Redmine)
 
-This skill guides the agent in gathering Redmine issues for the current week, extracting status updates and details from their note journals, filtering for leaf-node tasks (issues with no subtasks), copying Mirle Group's official Google Slides template (`盟立集團-新版ppt-2`), renaming the copy to `<使用者名稱>_週報_<這周週五的年月日>`, and generating a professional weekly report slide deck directly in Google Slides using the `google-workspace` MCP server.
+This skill guides the agent in gathering Redmine issues for the current week, extracting status updates and details from their note journals, filtering for leaf-node tasks (issues with no subtasks), copying Mirle Group's official Google Slides template (`盟立集團-新版ppt-2`), renaming the copy to `週報_<使用者名稱>_<這周週五的年月日>`, and generating a professional weekly report slide deck directly in Google Slides using the `google-workspace` MCP server.
 
 ## Prerequisites
 - The **Redmine** MCP server must be configured and running.
@@ -91,8 +91,8 @@ This skill guides the agent in gathering Redmine issues for the current week, ex
      `uv run --with google-api-python-client --with google-auth scripts/generate_weekly_report_gslides.py <scratch/issues.json> [user_google_email] [user_name]`
    - The script will automatically:
      - Search Google Drive for the template presentation named `盟立集團-新版ppt-2`.
-     - Copy the template file to create a new Google Slides presentation named `<使用者名稱>_週報_<這周週五的年月日>` (e.g. `王小明_週報_20260724`).
-     - Set the **title of Slide 1** to match the file name: `<使用者名稱>_週報_<這周週五的年月日>`.
+     - Copy the template file to create a new Google Slides presentation named `週報_<使用者名稱>_<這周週五的年月日>` (e.g. `週報_王小明_20260724`).
+     - Set the **title of Slide 1** to match the file name: `週報_<使用者名稱>_<這周週五的年月日>`.
      - Update Slide 1 subtitle with the date range (`start_date ~ end_date`), report generation date, and reporter name.
      - Generate slide(s) containing a structured, formatted table of issues and their statuses (paginated in chunks of 10 if there are many issues).
      - Generate one detail slide per issue with a left column card containing metadata (project, status, assignee, creation date) and a right column containing bulleted progress updates.
